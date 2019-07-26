@@ -1,19 +1,22 @@
 # coding: utf-8
-
+# author: loginaway
 '''
     This is an implementation of PMF algorithm for recommender systems.
 '''
 
 import numpy as np
-from dataAPI import dataAPI
-from matplotlib import pyplot as pyplot
 
 class PMF(object):
 
-    def __init__(self, stepsize, D_dimension, batchNum, epochNum, R, k_u, k_v, UVsize):
+    def __init__(self, stepsize, D_dimension, epochNum, R, k_u, k_v, UVsize):
+        '''
+        D-dimension: latent embedding dimension for U and V
+        R: the matrix used to generate I, i.e. the sign matrix that indicates whether the user rated the movie or not
+        k_u and k_v: the hyper-parameter that decides weights of regularization in the objective function.
+        UVsize: an array containing (number of Users, number of Movies)
+        '''
         self.stepsize=stepsize
         self.dim=D_dimension
-        self.batchNum=batchNum
         self.epochNum=epochNum
         
         self.k_u=k_u
@@ -45,7 +48,7 @@ class PMF(object):
             sec2=np.dot(Pred_dot_I[i], self.V)
             sec3=self.k_u*self.U[i]
             
-            gradU[i]=-sec1+sec2+sec3
+            gradU[i]=-1*sec1+sec2+sec3
         return gradU
 
     def gradV(self, R):
@@ -92,7 +95,7 @@ class PMF(object):
         '''
         tmp=0
         for i, j, Rij in ratings:
-            tmp+=(np.vdot(self.U[i-1], self.V[j-1])-Rij)**2
+            tmp+=(np.vdot(self.U[int(i)], self.V[int(j)])-Rij)**2
         return np.sqrt(tmp/len(ratings))
 
     def fit(self, trainingSet, testingSet, beta=0.6):
@@ -116,18 +119,27 @@ class PMF(object):
         '''
         R=np.zeros(size, dtype=int)
         for item in ratings:
-            R[item[0]-1, item[1]-1]=item[2]
+            R[int(item[0]), int(item[1])]=item[2]
 
         return R
 
-    def saveData(self, rmse=None, saveUV=True, saveRMSE=True):
+    def saveData(self, rmse=None, ndcg=None, saveUV=True):
         if saveUV:
-            np.save('U_SVD.npy', self.U)
-            np.save('V_SVD.npy', self.V)
+            np.save('U.npy', self.U)
+            np.save('V.npy', self.V)
             print('U, V saved')
-        if saveRMSE:
-            np.save('RMSE_SVD.npy', rmse)
-            print('rmse saved')
+        save_list=[]
+        int_str=''
+        if rmse:
+            save_list.append('RMSE: '+str(rmse))
+            int_str=int_str+'[RMSE]'
+        if ndcg:
+            ndcg=[str(i) for i in ndcg]
+            save_list.append('NDCG: '+'\t'.join(ndcg))
+            int_str=int_str+'[NDCG]'
+        with open('Evaluation.txt', 'w') as f:
+            f.write('\n'.join(save_list))
+        print(int_str, 'saved to Evaluation.txt')
 
     def DCG(self, true_Ri, model_Ri, k=5):
         '''
@@ -152,14 +164,3 @@ class PMF(object):
                 scores[i]=DCGi/IDCGi
                 count+=1
         return np.sum(scores)/count
-
-if __name__=='__main__':
-    api=dataAPI()
-    ratings, UVsize=api.fetchRatings(fromDB=False)
-    R=api.generateRemark(UVsize, ratings, fromFile=True)
-    trainingSet=api.readTrainingSet()
-    testingSet=api.readTestingSet()
-
-    pmf=PMF(0.01, 30, 1, 4, R, 0.02, 0.02, UVsize)
-    rmse=pmf.fit(trainingSet, testingSet)
-    pmf.saveData(rmse)
