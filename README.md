@@ -4,13 +4,15 @@ This is an implementation of PMF algorithm.
 
 For the idea of this algorithm, please see *Probabilistic Matrix Factorization*, Ruslan Salakhutdinov and Andriy Mnih.
 
+If you meet any problem while running the code, please file an issue or contact me by loginaway@gmail.com.
+
 ## Dependencies
 
 Only *numpy* is needed to be installed manually. Try
 
 `pip install numpy`
 
-or if you are a user of *Anaconda*, try
+or by *conda*, try
 
 `conda install numpy`
 
